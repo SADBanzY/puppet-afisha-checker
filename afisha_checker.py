@@ -1,12 +1,12 @@
-# afisha_checker.py (одноразовая проверка)
 import requests
 import hashlib
-import os
+import time
 
+# Настройки
 URL = 'https://puppet-minsk.by/afisha'
-HASH_FILE = 'last_hash.txt'
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
+CHECK_INTERVAL = 3600  # раз в час (в секундах)
+BOT_TOKEN = '8174740820:AAEW2hGlPpMkGdn_EfkTkA3or8apDiXh_Xc'
+CHAT_ID = '840546514'
 
 def get_page_hash():
     try:
@@ -19,32 +19,35 @@ def get_page_hash():
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {'chat_id': CHAT_ID, 'text': text}
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': text
+    }
     try:
         requests.post(url, data=payload)
     except Exception as e:
         print("Ошибка отправки сообщения:", e)
 
-def load_last_hash():
-    if os.path.exists(HASH_FILE):
-        with open(HASH_FILE, 'r') as f:
-            return f.read().strip()
-    return ''
-
-def save_hash(hash):
-    with open(HASH_FILE, 'w') as f:
-        f.write(hash)
-
 def main():
-    current_hash = get_page_hash()
-    if not current_hash:
+    last_hash = get_page_hash()
+    if not last_hash:
+        print("Ошибка при первом запуске.")
         return
-    last_hash = load_last_hash()
-    if current_hash != last_hash:
-        send_telegram_message("🎭 Афиша театра обновилась! https://puppet-minsk.by/afisha")
-        save_hash(current_hash)
-    else:
-        print("Без изменений.")
+
+    print("Начинаю отслеживание афиши...")
+
+    while True:
+        time.sleep(CHECK_INTERVAL)
+        current_hash = get_page_hash()
+        if not current_hash:
+            continue
+
+        if current_hash != last_hash:
+            print("Обнаружено обновление!")
+            send_telegram_message("🎭 Афиша театра обновилась! Проверь здесь: https://puppet-minsk.by/afisha")
+            last_hash = current_hash
+        else:
+            print("Афиша не изменилась.")
 
 if __name__ == '__main__':
     main()
